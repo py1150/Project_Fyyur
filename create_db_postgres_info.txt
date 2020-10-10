@@ -1,0 +1,6 @@
+psql db
+
+/du - check all users/roles
+
+create user <user> with password <password>;
+grant all privileges on database project1 to <user>;
