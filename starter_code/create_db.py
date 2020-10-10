@@ -52,33 +52,41 @@ def create_db(db_url):
     return engine
 
 def create_table_venue(engine):
-    if engine.dialect.has_table(engine, 'Venue')==False: 
+    #drop table if exists
+    if engine.dialect.has_table(engine, 'Venue')==True:
+        metadata = MetaData(bind=engine, reflect=True)
+        venue = metadata.tables['Venue']
+        venue.drop()
+        print("Table dropped"\n\n\n)
+    #if engine.dialect.has_table(engine, 'Venue')==False: 
         #metadata = MetaData(engine)
-        metadata = MetaData()
-        # Create schema
-        venue = Table('Venue', metadata,\
-            Column('id', Integer, primary_key=True, nullable=False),\
-            Column('name', String),\
-            Column('city', String),\
-            Column('state', String),\
-            Column('address', String),\
-            Column('phone', String),\
-            Column('image_link', String),\
-            Column('facebook_link', String),\
-            Column('website', String),\
-            Column('genres', String),\
-            Column('seeking_talent', Boolean),\
-            Column('seeking_description', String),\
-            Column('past_shows_count', Integer),\
-            Column('upcoming_shows_count', Integer))
+    metadata = MetaData()
+    # Create schema
+    venue = Table('Venue', metadata,\
+        Column('id', Integer, primary_key=True, nullable=False),\
+        Column('name', String),\
+        Column('city', String),\
+        Column('state', String),\
+        Column('address', String),\
+        Column('phone', String),\
+        Column('image_link', String),\
+        Column('facebook_link', String),\
+        Column('website', String),\
+        Column('genres', String),\
+        Column('seeking_talent', Boolean),\
+        Column('seeking_description', String),\
+        Column('past_shows_count', Integer),\
+        Column('upcoming_shows_count', Integer))
             
-        # create
-        metadata.create_all(engine)
-        print('Table Venue created')
+    # create
+    metadata.create_all(engine)
+    print('Table Venue created')
+    """
     else:
         metadata = MetaData(bind=engine, reflect=True)
         venue = metadata.tables['Venue']
         print('Table Venue already exists')
+    """
     return venue
 
 
