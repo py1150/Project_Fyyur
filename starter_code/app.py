@@ -1,3 +1,9 @@
+# to do
+# implement delete completely - in app.py uncomment, in show_venue.html delete button incl javascript added
+# insert venue implemented - however genres, facebook_link is not saved
+# --> venue detail page cannot be displayed bc these values are expected
+
+
 #----------------------------------------------------------------------------#
 # Imports
 #----------------------------------------------------------------------------#
@@ -5,7 +11,7 @@
 import json
 import dateutil.parser
 import babel
-from flask import Flask, render_template, request, Response, flash, redirect, url_for, abort
+from flask import Flask, render_template, request, Response, flash, redirect, url_for, abort, jsonify
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
 import logging
@@ -14,6 +20,9 @@ from flask_wtf import Form
 from forms import *
 import sys
 
+from flask_migrate import Migrate
+import re
+import os
 import pdb
 #----------------------------------------------------------------------------#
 # App Config.
@@ -23,6 +32,8 @@ app = Flask(__name__)
 moment = Moment(app)
 app.config.from_object('config')
 db = SQLAlchemy(app)
+
+migrate = Migrate(app, db)
 
 # TODO: connect to a local postgresql database
 
@@ -42,12 +53,12 @@ class Venue(db.Model):
     phone = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
-    website = db.Column(db.String(120))
-    genres = db.Column(db.String(120))
-    seeking_talent = db.Column(db.Boolean)
-    seeking_description = db.Column(db.String(500))
-    past_shows_count = db.Column(db.Integer)
-    upcoming_shows_count = db.Column(db.Integer)
+    website = db.Column(db.String(120)) # flask migrate
+    genres = db.Column(db.String(120)) # flask migrate
+    seeking_talent = db.Column(db.Boolean) # flask migrate
+    seeking_description = db.Column(db.String(500)) # flask migrate
+    past_shows_count = db.Column(db.Integer) # flask migrate
+    upcoming_shows_count = db.Column(db.Integer) # flask migrate
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
@@ -62,6 +73,9 @@ class Artist(db.Model):
     genres = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
+    website = db.Column(db.String(120)) # flask migrate
+    seeking_performance = db.Column(db.Boolean) # flask migrate
+    seeking_description = db.Column(db.String(500)) # flask migrate
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
@@ -79,6 +93,20 @@ class Show(db.Model):
 # o
 db.create_all()
 
+
+
+#----------------------------------------------------------------------------#
+# Utility Functions
+#----------------------------------------------------------------------------#
+
+
+# extract attribute names of data
+def extract_attribute_names(data):
+  data_attr = [attribute for attribute in dir(data)\
+                  if (attribute[0:1] not in ['_']\
+                       and attribute not in\
+                       ['query','query_class','metadata'])]
+  return data_attr
 
 #----------------------------------------------------------------------------#
 # Filters.
@@ -145,8 +173,40 @@ def venues():
   return render_template('pages/venues.html', areas=data);
 """
 
+@app.route('/venues/search', methods=['POST'])
+def search_venues():
+  # TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
+  # seach for Hop should return "The Musical Hop".
+  # search for "Music" should return "The Musical Hop" and "Park Square Live Music & Coffee"
+  
+  # initialize response (dict)
+  response = {}
 
+  # query for name in db
+  search_term = request.form['search_term']
+  # add '%' characters to search term
+  search_formatted=f'%{search_term}%'
+  # query from db - case insensitive 'ilike'
+  query_results = Venue.query.filter(Venue.name.ilike(search_formatted))\
+                       .all()
 
+  # store number of results found                     
+  response['count'] = len(query_results) 
+
+  # store of each result
+  response['data']=[]
+  for venue in query_results:
+    result_dict = {}
+    result_dict['id'] = venue.id
+    result_dict['name'] = venue.name
+    result_dict['num_upcoming_shows'] = venue.upcoming_shows_count
+    response['data'].append(result_dict)
+  
+  #Venue.query.filter_by(name=venue_id)
+  #return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
+  return render_template('pages/search_venues.html', results=response, search_term=search_term)
+
+"""
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
   # TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
@@ -161,7 +221,7 @@ def search_venues():
     }]
   }
   return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
-
+"""
 
 
 @app.route('/venues/<int:venue_id>')
@@ -170,11 +230,33 @@ def show_venue(venue_id):
   # TODO: replace with real venue data from the venues table, using venue_id
   
   #data = list(filter(lambda d: d['id'] == venue_id, [data1, data2, data3]))[0]
-
   query = Venue.query.filter(Venue.id==venue_id)
   #data = query.all()
   data = query.first()
-  return render_template('pages/show_venue.html', venue=data)
+
+  #get value for genres
+  # 1. clean string from special characters
+  clean_str = re.sub(r'[\{}"]','',data.genres)
+  genres = re.split(",",clean_str)
+  
+  data_attr = extract_attribute_names(data)
+
+  # save genres and all other variables in dictionary
+  # values from database + formatted genre data
+  # assign empty string instead of None
+  venue_dict={}
+  for name in data_attr:
+   
+    if name=='genres':
+      venue_dict[name] = genres
+    else:
+      venue_dict[name] = data.__getattribute__(name)
+    
+    if venue_dict[name]==None:
+      venue_dict[name]=''
+  
+  #return render_template('pages/show_venue.html', venue=data)
+  return render_template('pages/show_venue.html', venue=venue_dict)
 
 
 
@@ -292,11 +374,10 @@ def create_venue_submission():
     state = request.form['state']
     address = request.form['address']
     phone = request.form['phone']
-    #facebook_link = request.form['facebook_link']
-    #genres = request.form['genres']
+    facebook_link = request.form['facebook_link']
+    genres = request.form.getlist('genres') #werkzeug multidict; non-unique keys are possible: method 'getlist' to get all values
     venue = Venue(id=id_val, name=name, city=city, state=state,\
-              address=address, phone=phone)
-
+              address=address, phone=phone, facebook_link=facebook_link, genres=genres)
     db.session.add(venue)
     db.session.commit()
     flash('Venue ' + request.form['name'] + ' was successfully listed!')
@@ -325,7 +406,7 @@ def create_venue_submission():
   return render_template('pages/home.html')
 """
 
-"""
+
 @app.route('/venues/<venue_id>', methods=['DELETE'])
 def delete_venue(venue_id):
   # TODO: Complete this endpoint for taking a venue_id, and using
@@ -333,18 +414,28 @@ def delete_venue(venue_id):
 
   # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
   # clicking that button delete it from the db then redirect the user to the homepage
+  error=False
   try:
-    pdb.set_trace()
+    venue_name = Venue.query.filter_by(id=venue_id).first().name
     Venue.query.filter_by(id=venue_id).delete()
     db.session.commit()
+    flash('Venue ' + venue_name + ' was successfully deleted!')
   except:
     db.session.rollback()
+    flash('Venue ' + venue_name + ' was not deleted')
   finally:
     db.session.close()
-  return render_template('pages/home.html')
+  print('check error')
+  print(error)
+  if error:
+    print("error detected")
+    abort(400)
+  else:
+    #return render_template('pages/home.html')
+    return redirect(url_for('index'))
+
+
 """
-
-
 @app.route('/venues/<venue_id>', methods=['DELETE'])
 def delete_venue(venue_id):
   # TODO: Complete this endpoint for taking a venue_id, and using
@@ -353,9 +444,30 @@ def delete_venue(venue_id):
   # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
   # clicking that button delete it from the db then redirect the user to the homepage
   return None
+"""
 
 #  Artists
 #  ----------------------------------------------------------------
+@app.route('/artists')
+def artists():
+  # TODO: replace with real data returned from querying the database
+
+  # query from database
+  query_result = Artist.query.all()
+
+  pdb.set_trace()
+
+  data=[]
+  for result in query_result:
+    result_dict={}
+    result_dict['id'] = result.id
+    result_dict['name'] = result.name
+    # upcoming shows - extract from shows
+    data.append(result_dict)
+
+  return render_template('pages/artists.html', artists=data)
+
+"""
 @app.route('/artists')
 def artists():
   # TODO: replace with real data returned from querying the database
@@ -370,6 +482,7 @@ def artists():
     "name": "The Wild Sax Band",
   }]
   return render_template('pages/artists.html', artists=data)
+"""
 
 @app.route('/artists/search', methods=['POST'])
 def search_artists():
@@ -386,6 +499,42 @@ def search_artists():
   }
   return render_template('pages/search_artists.html', results=response, search_term=request.form.get('search_term', ''))
 
+
+@app.route('/artists/<int:artist_id>')
+def show_artist(artist_id):
+  # shows the venue page with the given venue_id
+  # TODO: replace with real venue data from the venues table, using venue_id
+
+  # query data base
+  query = Artist.query.filter(Artist.id==artist_id)
+  data = query.first()
+
+  #get value for genres
+  # 1. clean string from special characters
+  clean_str = re.sub(r'[\{}"]','',data.genres)
+  genres = re.split(",",clean_str)
+  
+  data_attr = extract_attribute_names(data)
+
+  # save genres and all other variables in dictionary
+  # values from database + formatted genre data
+  # assign empty string instead of None
+  artist_dict={}
+  for name in data_attr:
+   
+    if name=='genres':
+      artist_dict[name] = genres
+    else:
+      artist_dict[name] = data.__getattribute__(name)
+    
+    if artist_dict[name]==None:
+      artist_dict[name]=''
+  
+  #return render_template('pages/show_artist.html', artist=data)
+  return render_template('pages/show_artist.html', artist=artist_dict)
+
+
+"""
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
   # shows the venue page with the given venue_id
@@ -463,6 +612,7 @@ def show_artist(artist_id):
   }
   data = list(filter(lambda d: d['id'] == artist_id, [data1, data2, data3]))[0]
   return render_template('pages/show_artist.html', artist=data)
+"""
 
 #  Update
 #  ----------------------------------------------------------------
@@ -526,6 +676,58 @@ def create_artist_form():
   form = ArtistForm()
   return render_template('forms/new_artist.html', form=form)
 
+
+@app.route('/artists/create', methods=['POST'])
+def create_artist_submission():
+  # called upon submitting the new artist listing form
+  # TODO: insert form data as a new Venue record in the db, instead
+  # TODO: modify data to be the data object returned from db insertion
+
+  # on successful db insert, flash success
+  #flash('Artist ' + request.form['name'] + ' was successfully listed!')
+  # TODO: on unsuccessful db insert, flash an error instead.
+  # e.g., flash('An error occurred. Artist ' + data.name + ' could not be listed.')
+  #return render_template('pages/home.html')
+
+  error=False
+  try:
+    # id is the last id from table in db +1
+    try:
+      id_val = Artist.query.order_by(Artist.id.desc()).first().id+1
+    except:
+      id_val = 1
+    # all other values are retrieved from the form
+    name = request.form['name']
+    city = request.form['city']
+    state = request.form['state']
+    phone = request.form['phone']
+    website = request.form['website']
+    facebook_link = request.form['facebook_link']
+    genres = request.form.getlist('genres') #werkzeug multidict; non-unique keys are possible: method 'getlist' to get all values
+    if len(request.form['seeking_description'])>0:
+      seeking_performance = True
+    else:
+      seeking_performance = False
+    seeking_description=request.form['seeking_description']
+    artist = Artist(id=id_val, name=name, city=city, state=state,\
+              phone=phone, website=website,\
+              facebook_link=facebook_link, genres=genres,\
+              seeking_performance=seeking_performance, seeking_description=seeking_description)
+    db.session.add(artist)
+    db.session.commit()
+    flash('Artist ' + request.form['name'] + ' was successfully listed!')
+  except:
+    error=True
+    db.session.rollback()
+    flash('Artist ' + request.form['name'] + ' could not be listed.')
+  finally:
+    db.session.close()
+  if error:
+    abort(400)
+  else:
+    return render_template('pages/home.html')
+
+"""
 @app.route('/artists/create', methods=['POST'])
 def create_artist_submission():
   # called upon submitting the new artist listing form
@@ -537,7 +739,7 @@ def create_artist_submission():
   # TODO: on unsuccessful db insert, flash an error instead.
   # e.g., flash('An error occurred. Artist ' + data.name + ' could not be listed.')
   return render_template('pages/home.html')
-
+"""
 
 #  Shows
 #  ----------------------------------------------------------------
@@ -627,12 +829,10 @@ if not app.debug:
 #----------------------------------------------------------------------------#
 
 # Default port:
-if __name__ == '__main__':
-    app.run()
+#if __name__ == '__main__':
+#    app.run()
 
 # Or specify port manually:
-'''
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-'''

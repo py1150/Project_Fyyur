@@ -4,9 +4,9 @@
 <div class="row">
 	<div class="col-sm-6">
 		<h1 class="monospace">
-			{{ venue.name }}
+			{{venue.name}}
 		</h1>
-		<button class="delete-button" data-id="{{ venue.id }}" id='button1'>DELETE</button>
+		<button class="delete-button" data-id="{{ venue.id }}" id='button1' onclick="delFunc()">DELETE</button>
 		<p class="subtitle">
 			ID: {{ venue.id }}
 		</p>
@@ -77,14 +77,34 @@
 </section>
 
 
+<!-- delete button added -->
 <script>
-    const btn = document.querySelector('button1');
-    btn.onclick = function(e) {
-      const venueId = e.target.dataset['id'];
-      fetch('/venues/' + venueId, {
-        method: 'DELETE'
-      });
-    }
+	function delFunc(){
+		const btn = document.querySelector('#button1');
+		const venueId = btn.dataset.id;
+		//alert(venueId);
+		alert('URL: '+'/venues/'+venueId)
+        fetch('/venues/' + venueId, {
+        	method: 'DELETE'
+      	}).then(response => {
+			//HTTP 301 response
+			if (response.redirected){
+				window.location.href=response.url;
+			}
+		})
+	};
+
+
+   // const btn = document.querySelector('#button1');
+   // btn.onclick = function(e) {
+	  //const venueId = e.target.dataset['id'];
+	//  const venueId = e.dataset.id;
+	  //const venueId = btn.dataset.id;
+	//  alert(venueID);
+    //  fetch('/venues/' + venueId, {
+    //    method: 'DELETE'
+    //  });
+    //}
 </script>
 
 {% endblock %}
