@@ -1,8 +1,7 @@
-# to do
-# implement delete completely - in app.py uncomment, in show_venue.html delete button incl javascript added
-# insert venue implemented - however genres, facebook_link is not saved
-# --> venue detail page cannot be displayed bc these values are expected
 
+# to dos
+# shows
+# check all fields such as upcoming shows etc
 
 #----------------------------------------------------------------------------#
 # Imports
@@ -455,8 +454,6 @@ def artists():
   # query from database
   query_result = Artist.query.all()
 
-  pdb.set_trace()
-
   data=[]
   for result in query_result:
     result_dict={}
@@ -484,6 +481,41 @@ def artists():
   return render_template('pages/artists.html', artists=data)
 """
 
+
+@app.route('/artists/search', methods=['POST'])
+def search_artists():
+  # TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
+  # seach for "A" should return "Guns N Petals", "Matt Quevado", and "The Wild Sax Band".
+  # search for "band" should return "The Wild Sax Band".
+
+  # initialize response (dict)
+  response = {}
+
+  # query for name in db
+  search_term = request.form['search_term']
+  # add '%' characters to search term
+  search_formatted=f'%{search_term}%'
+  # query from db - case insensitive 'ilike'
+  query_results = Artist.query.filter(Artist.name.ilike(search_formatted))\
+                       .all()
+
+  # store number of results found                     
+  response['count'] = len(query_results) 
+
+  # store of each result
+  response['data']=[]
+  for artist in query_results:
+    result_dict = {}
+    result_dict['id'] = artist.id
+    result_dict['name'] = artist.name
+    response['data'].append(result_dict)
+  
+  #return render_template('pages/search_artists.html', results=response, search_term=request.form.get('search_term', ''))
+  return render_template('pages/search_artists.html', results=response, search_term=search_term)
+
+  
+
+"""
 @app.route('/artists/search', methods=['POST'])
 def search_artists():
   # TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
@@ -498,7 +530,7 @@ def search_artists():
     }]
   }
   return render_template('pages/search_artists.html', results=response, search_term=request.form.get('search_term', ''))
-
+"""
 
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
@@ -619,6 +651,67 @@ def show_artist(artist_id):
 @app.route('/artists/<int:artist_id>/edit', methods=['GET'])
 def edit_artist(artist_id):
   form = ArtistForm()
+  # TODO: populate form with fields from artist with ID <artist_id>
+  # query db for current id
+  query = Artist.query.filter_by(id=artist_id).first()
+
+  # create venue dictionary
+  artist = {}
+  artist['id'] = query.id
+  artist['name'] = query.name
+
+  # prefill form
+  form.name.data = query.name
+  form.city.data = query.city
+  form.state.data = query.state
+  form.phone.data = query.phone
+  clean_str = re.sub(r'[\{}"]','',query.genres)
+  form.genres.data = re.split(",",clean_str)
+  form.facebook_link.data = query.facebook_link
+
+  return render_template('forms/edit_artist.html', form=form, artist=artist)
+
+@app.route('/artists/<int:artist_id>/edit', methods=['POST'])
+def edit_artist_submission(artist_id):
+  # TODO: take values from the form submitted, and update existing
+  # artist record with ID <artist_id> using the new attributes
+
+  #retrieve data from form
+  form_data = {}
+  form_data['name'] = request.form['name']
+  form_data['city'] = request.form['city']
+  form_data['state'] = request.form['state']
+  form_data['phone'] = request.form['phone']
+  form_data['genres'] = '{'+','.join([str(elem) for elem in request.form.getlist('genres')])+'}'
+  form_data['facebook_link'] = request.form['facebook_link']
+
+  # query db for current id
+  query = Artist.query.filter_by(id=artist_id).first()
+  
+  # reduce update dictionary to changed values only
+  update_dict = {key:value for (key,value) in form_data.items()\
+    if value!= query.__getattribute__(key)}
+  # update
+  error=False
+  try:
+    Artist.query.filter_by(id=artist_id).update(update_dict)
+    db.session.commit()
+    flash('Artist ' + query.name + ' was successfully updated!')
+  except:
+    error=True
+    db.session.rollback()
+    flash('Artist ' + query.name + ' could not be updated.')
+  finally:
+    db.session.close()
+  if error:
+    abort(400)
+
+  return redirect(url_for('show_artist', artist_id=artist_id))
+
+"""
+@app.route('/artists/<int:artist_id>/edit', methods=['GET'])
+def edit_artist(artist_id):
+  form = ArtistForm()
   artist={
     "id": 4,
     "name": "Guns N Petals",
@@ -641,7 +734,75 @@ def edit_artist_submission(artist_id):
   # artist record with ID <artist_id> using the new attributes
 
   return redirect(url_for('show_artist', artist_id=artist_id))
+"""
 
+
+@app.route('/venues/<int:venue_id>/edit', methods=['GET'])
+def edit_venue(venue_id):
+  form = VenueForm()
+
+  # query db for current id
+  query = Venue.query.filter_by(id=venue_id).first()
+
+  # create venue dictionary
+  venue = {}
+  venue['id'] = query.id
+  venue['name'] = query.name
+
+  # prefill form
+  form.name.data = query.name
+  form.city.data = query.city
+  form.state.data = query.state
+  form.address.data = query.address
+  form.phone.data = query.phone
+  clean_str = re.sub(r'[\{}"]','',query.genres)
+  #venue['genres'] = re.split(",",clean_str)
+  form.genres.data = re.split(",",clean_str)
+  form.facebook_link.data = query.facebook_link
+
+  # TODO: populate form with values from venue with ID <venue_id>
+  return render_template('forms/edit_venue.html', form=form, venue=venue)
+
+@app.route('/venues/<int:venue_id>/edit', methods=['POST'])
+def edit_venue_submission(venue_id):
+  # TODO: take values from the form submitted, and update existing
+  # venue record with ID <venue_id> using the new attributes
+
+  #retrieve data from form
+  form_data = {}
+  form_data['name'] = request.form['name']
+  form_data['city'] = request.form['city']
+  form_data['state'] = request.form['state']
+  form_data['address'] = request.form['address']
+  form_data['phone'] = request.form['phone']
+  form_data['genres'] = '{'+','.join([str(elem) for elem in request.form.getlist('genres')])+'}'
+  form_data['facebook_link'] = request.form['facebook_link']
+
+  # query db for current id
+  query = Venue.query.filter_by(id=venue_id).first()
+  
+  # reduce update dictionary to changed values only
+  update_dict = {key:value for (key,value) in form_data.items()\
+    if value!= query.__getattribute__(key)}
+  # update
+  error=False
+  try:
+    Venue.query.filter_by(id=venue_id).update(update_dict)
+    db.session.commit()
+    flash('Venue ' + query.name + ' was successfully updated!')
+  except:
+    error=True
+    db.session.rollback()
+    flash('Venue ' + query.name + ' could not be updated.')
+  finally:
+    db.session.close()
+  if error:
+    abort(400)
+  return redirect(url_for('show_venue', venue_id=venue_id))
+
+
+
+"""
 @app.route('/venues/<int:venue_id>/edit', methods=['GET'])
 def edit_venue(venue_id):
   form = VenueForm()
@@ -667,6 +828,9 @@ def edit_venue_submission(venue_id):
   # TODO: take values from the form submitted, and update existing
   # venue record with ID <venue_id> using the new attributes
   return redirect(url_for('show_venue', venue_id=venue_id))
+"""
+
+
 
 #  Create Artist
 #  ----------------------------------------------------------------

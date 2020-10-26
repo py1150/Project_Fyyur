@@ -6,6 +6,7 @@
 		<h1 class="monospace">
 			{{venue.name}}
 		</h1>
+		<button class="delete-button" data-id="{{ venue.id }}" id='button2'>EDIT</button>
 		<button class="delete-button" data-id="{{ venue.id }}" id='button1' onclick="delFunc()">DELETE</button>
 		<p class="subtitle">
 			ID: {{ venue.id }}
@@ -104,7 +105,31 @@
     //  fetch('/venues/' + venueId, {
     //    method: 'DELETE'
     //  });
-    //}
+	//}
+	
+	/* href
+	const btn2 = document.querySelector('#button2');
+    btn2.onclick = function(e) {
+	  const venueId = e.target.dataset['id'];
+	  console.log('function called, id: '+venueId);
+	  location.href = '/venues/'+venueId+'/edit'
+	}
+*/
+
+	//get request
+    const btn2 = document.querySelector('#button2');
+    btn2.onclick = function(e) {
+	  const venueId = e.target.dataset['id'];
+	  console.log('function called, id: '+venueId);
+	  //alert(venueId);
+      fetch('/venues/' + venueId + '/edit', {
+        method: 'GET'
+      }).then(response => {
+			//HTTP 301 response
+			window.location.href=response.url;
+		});
+	}
+
 </script>
 
 {% endblock %}

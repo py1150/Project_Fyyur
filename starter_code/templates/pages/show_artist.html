@@ -6,6 +6,7 @@
 		<h1 class="monospace">
 			{{ artist.name }}
 		</h1>
+		<button class="delete-button" data-id="{{ artist.id }}" id='button2'>EDIT</button>
 		<p class="subtitle">
 			ID: {{ artist.id }}
 		</p>
@@ -71,6 +72,21 @@
 		{% endfor %}
 	</div>
 </section>
+
+<script>
+//get request
+    const btn2 = document.querySelector('#button2');
+    btn2.onclick = function(e) {
+	  const venueId = e.target.dataset['id'];
+	  console.log('function called, id: '+venueId);
+      fetch('/artists/' + venueId + '/edit', {
+        method: 'GET'
+      }).then(response => {
+			//HTTP 301 response
+			window.location.href=response.url;
+		});
+	}
+</script>
 
 {% endblock %}
 
