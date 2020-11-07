@@ -69,8 +69,8 @@ class Venue(db.Model):
     genres = db.Column(db.String(120)) # flask migrate
     seeking_talent = db.Column(db.Boolean) # flask migrate
     seeking_description = db.Column(db.String(500)) # flask migrate
-    past_shows_count = db.Column(db.Integer) # flask migrate
-    upcoming_shows_count = db.Column(db.Integer) # flask migrate
+    #past_shows_count = db.Column(db.Integer) # flask migrate
+    #upcoming_shows_count = db.Column(db.Integer) # flask migrate
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
