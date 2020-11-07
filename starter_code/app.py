@@ -1,7 +1,19 @@
 
 # to dos
+# past - upcoming shows
+#   - divide by date (Shows model)
+#   - on venue and artist page show past and upcoming shows; aggregate number; use model Show  
+#
 # new/edit venue, new/edit artist: currently seeking and edit possible for all fields which are in new / website 
 # check all fields such as upcoming shows etc
+# past performance / upcoming shows - count
+
+# @app.route('/venues/<int:venue_id>')
+# upcoming shows --> artist
+
+# edit model - upcoming shows - delete migrations
+# seeking veneu and artist - should be availabe in edit
+# check in form if other restrictions are necessary
 
 #----------------------------------------------------------------------------#
 # Imports
@@ -255,6 +267,67 @@ def show_venue(venue_id):
     if venue_dict[name]==None:
       venue_dict[name]=''
   
+  
+  # add show data
+  #---------------
+  now = datetime.now()
+
+  # past shows
+  query_past_shows = db.session\
+                       .query(Venue, Show, Artist)\
+                       .join(Show, Venue.id == Show.venue_id)\
+                       .join(Artist, Show.artist_id == Artist.id)\
+                       .filter(Venue.id==venue_id)\
+                       .filter(Show.start_time<now)\
+                       .all()
+  
+  # create past shows list
+  past_shows = []
+  # add a dictionary for each search result to the list
+  for venue, show, artist in query_past_shows:
+    past_shows_dict={}
+    past_shows_dict['artist_image_link'] = artist.image_link
+    past_shows_dict['artist_id'] = artist.id
+    past_shows_dict['artist_name'] = artist.name
+    str_time = show.start_time.strftime('%Y-%m-%d, %H:%M:%S')
+    past_shows_dict['start_time'] = format_datetime(value=str_time,format='full')
+    # append to list
+    past_shows.append(past_shows_dict)
+ 
+  # upcoming shows
+  """
+  query_upcoming_shows = Show.query.filter_by(venue_id=venue_id)\
+                          .filter(Show.start_time>=datetime.now())\
+                          .all()
+  """
+  query_upcoming_shows = db.session\
+                          .query(Venue, Show, Artist)\
+                          .join(Show, Venue.id == Show.venue_id)\
+                          .join(Artist, Show.artist_id == Artist.id)\
+                          .filter(Venue.id == venue_id)\
+                          .filter(Show.start_time >= now)\
+                          .all()
+  
+  # create past shows list
+  upcoming_shows = []
+  # add a dictionary for each search result to the list
+  for venue, show, artist in query_upcoming_shows:
+    upcoming_shows_dict={}
+    upcoming_shows_dict['artist_image_link'] = artist.image_link
+    upcoming_shows_dict['artist_id'] = artist.id
+    upcoming_shows_dict['artist_name'] = artist.name
+    str_time = show.start_time.strftime('%Y-%m-%d, %H:%M:%S')
+    upcoming_shows_dict['start_time'] = format_datetime(value=str_time,format='full')
+    # append to list
+    upcoming_shows.append(upcoming_shows_dict)                        
+
+
+  # create output
+  venue_dict['past_shows_count'] = len(query_past_shows)
+  venue_dict['past_shows'] = past_shows
+  venue_dict['upcoming_shows_count'] = len(query_upcoming_shows)
+  venue_dict['upcoming_shows'] = upcoming_shows
+
   #return render_template('pages/show_venue.html', venue=data)
   return render_template('pages/show_venue.html', venue=venue_dict)
 
@@ -376,8 +449,15 @@ def create_venue_submission():
     phone = request.form['phone']
     facebook_link = request.form['facebook_link']
     genres = request.form.getlist('genres') #werkzeug multidict; non-unique keys are possible: method 'getlist' to get all values
+    if len(request.form['seeking_description'])>0:
+      seeking_performance = True
+    else:
+      seeking_performance = False
+    seeking_description=request.form['seeking_description']
     venue = Venue(id=id_val, name=name, city=city, state=state,\
-              address=address, phone=phone, facebook_link=facebook_link, genres=genres)
+              address=address, phone=phone, facebook_link=facebook_link,\
+              genres=genres, seeking_performance=seeking_performance,\
+              seeking_description=seeking_description)
     db.session.add(venue)
     db.session.commit()
     flash('Venue ' + request.form['name'] + ' was successfully listed!')
@@ -562,6 +642,61 @@ def show_artist(artist_id):
     
     if artist_dict[name]==None:
       artist_dict[name]=''
+
+
+  # add show data
+  #---------------
+  now = datetime.now()
+
+  # past shows
+  query_past_shows = db.session\
+                       .query(Artist, Show, Venue)\
+                       .join(Show, Artist.id == Show.artist_id)\
+                       .join(Venue, Show.venue_id == Venue.id)\
+                       .filter(Artist.id==artist_id)\
+                       .filter(Show.start_time<now)\
+                       .all()
+  
+  # create past shows list
+  past_shows = []
+  # add a dictionary for each search result to the list
+  for arist, show, venue in query_past_shows:
+    past_shows_dict={}
+    past_shows_dict['venue_image_link'] = venue.image_link
+    past_shows_dict['venue_id'] = venue.id
+    past_shows_dict['venue_name'] = venue.name
+    str_time = show.start_time.strftime('%Y-%m-%d, %H:%M:%S')
+    past_shows_dict['start_time'] = format_datetime(value=str_time,format='full')
+    # append to list
+    past_shows.append(past_shows_dict)
+ 
+  # upcoming shows
+  query_upcoming_shows = db.session\
+                           .query(Artist, Show, Venue)\
+                           .join(Show, Artist.id == Show.artist_id)\
+                           .join(Venue, Show.venue_id == Venue.id)\
+                           .filter(Artist.id==artist_id)\
+                           .filter(Show.start_time >= now)\
+                           .all()
+  
+  # create past shows list
+  upcoming_shows = []
+  # add a dictionary for each search result to the list
+  for artist, show, venue in query_upcoming_shows:
+    upcoming_shows_dict={}
+    upcoming_shows_dict['venue_image_link'] = venue.image_link
+    upcoming_shows_dict['venue_id'] = venue.id
+    upcoming_shows_dict['venue_name'] = venue.name
+    str_time = show.start_time.strftime('%Y-%m-%d, %H:%M:%S')
+    upcoming_shows_dict['start_time'] = format_datetime(value=str_time,format='full')
+    # append to list
+    upcoming_shows.append(upcoming_shows_dict)                        
+
+  # create output
+  artist_dict['past_shows_count'] = len(query_past_shows)
+  artist_dict['past_shows'] = past_shows
+  artist_dict['upcoming_shows_count'] = len(query_upcoming_shows)
+  artist_dict['upcoming_shows'] = upcoming_shows
   
   #return render_template('pages/show_artist.html', artist=data)
   return render_template('pages/show_artist.html', artist=artist_dict)
@@ -671,6 +806,7 @@ def edit_artist(artist_id):
   form.website.data = query.website
   form.facebook_link.data = query.facebook_link
   form.image_link.data = query.image_link
+  form.seeking_description.data = query.seeking_description
 
   return render_template('forms/edit_artist.html', form=form, artist=artist)
 
@@ -766,6 +902,7 @@ def edit_venue(venue_id):
   form.website.data = query.website
   form.facebook_link.data = query.facebook_link
   form.image_link.data = query.image_link
+  form.seeking_description.data = query.seeking_description
 
   # TODO: populate form with values from venue with ID <venue_id>
   return render_template('forms/edit_venue.html', form=form, venue=venue)
@@ -1015,7 +1152,6 @@ def create_show_submission():
     venue_id = int(request.form['venue_id'])
     show = Show(id=id_val, start_time=start_time,\
       artist_id=artist_id, venue_id=venue_id)
-    pdb.set_trace()
     db.session.add(show)
     db.session.commit()
     flash('Show was successfully listed!')
