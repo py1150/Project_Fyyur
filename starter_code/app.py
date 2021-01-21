@@ -22,7 +22,18 @@
 import json
 import dateutil.parser
 import babel
-from flask import Flask, render_template, request, Response, flash, redirect, url_for, abort, jsonify
+from flask import (
+Flask,
+render_template,
+request,
+Response,
+flash,
+redirect,
+url_for,
+abort,
+jsonify
+)
+from models import app, db, Venue, Artist, Show
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
 import logging
@@ -40,70 +51,25 @@ import pdb
 # App Config.
 #----------------------------------------------------------------------------#
 
-app = Flask(__name__)
-moment = Moment(app)
+#
+#app.config.from_object(Config)
 app.config.from_object('config')
-db = SQLAlchemy(app)
+moment = Moment(app)
+db.init_app(app)
+#
 
-migrate = Migrate(app, db)
+
+
+#app = Flask(__name__)
+#moment = Moment(app)
+#app.config.from_object('config')
+#db = SQLAlchemy(app)
+
+#migrate = Migrate(app, db)
 
 # TODO: connect to a local postgresql database
 
 
-#----------------------------------------------------------------------------#
-# Models.
-#----------------------------------------------------------------------------#
-
-class Venue(db.Model):
-    __tablename__ = 'Venue'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    address = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
-    image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
-    website = db.Column(db.String(120)) # flask migrate
-    genres = db.Column(db.String(120)) # flask migrate
-    seeking_talent = db.Column(db.Boolean) # flask migrate
-    seeking_description = db.Column(db.String(500)) # flask migrate
-    #past_shows_count = db.Column(db.Integer) # flask migrate
-    #upcoming_shows_count = db.Column(db.Integer) # flask migrate
-
-    # TODO: implement any missing fields, as a database migration using Flask-Migrate
-
-class Artist(db.Model):
-    __tablename__ = 'Artist'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
-    genres = db.Column(db.String(120))
-    image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
-    website = db.Column(db.String(120)) # flask migrate
-    seeking_performance = db.Column(db.Boolean) # flask migrate
-    seeking_description = db.Column(db.String(500)) # flask migrate
-
-    # TODO: implement any missing fields, as a database migration using Flask-Migrate
-
-
-# TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
-
-class Show(db.Model):
-    __tablename__ = 'Show'
-
-    id = db.Column(db.Integer, primary_key=True)
-    start_time = db.Column(db.DateTime, nullable=False)
-    artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id'), nullable=False)
-    venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id'), nullable=False)
-
-# o
-db.create_all()
 
 
 
@@ -211,7 +177,7 @@ def search_venues():
     result_dict = {}
     result_dict['id'] = venue.id
     result_dict['name'] = venue.name
-    result_dict['num_upcoming_shows'] = venue.upcoming_shows_count
+    #result_dict['num_upcoming_shows'] = venue.upcoming_shows_count #2021/01/21
     response['data'].append(result_dict)
   
   #Venue.query.filter_by(name=venue_id)
@@ -440,7 +406,7 @@ def create_venue_submission():
   error=False
   try:
     # id is the last id from table in db +1
-    id_val = Venue.query.order_by(Venue.id.desc()).first().id+1
+    id_val = Venue.query.order_by(Venue.id.desc()).first().id+1 #2021/01/18
     # all other values are retrieved from the form
     name = request.form['name']
     city = request.form['city']
@@ -450,14 +416,24 @@ def create_venue_submission():
     facebook_link = request.form['facebook_link']
     genres = request.form.getlist('genres') #werkzeug multidict; non-unique keys are possible: method 'getlist' to get all values
     if len(request.form['seeking_description'])>0:
-      seeking_performance = True
+      #seeking_performance = True #2021/01/18
+      seeking_talent = True
     else:
-      seeking_performance = False
+      #seeking_performance = False #2021/01/18
+      seeking_talent = False
     seeking_description=request.form['seeking_description']
+    """ 2021/01/18
     venue = Venue(id=id_val, name=name, city=city, state=state,\
               address=address, phone=phone, facebook_link=facebook_link,\
               genres=genres, seeking_performance=seeking_performance,\
               seeking_description=seeking_description)
+    """
+    venue = Venue(id=id_val, name=name, city=city, state=state,\
+              address=address, phone=phone, facebook_link=facebook_link,\
+              genres=genres, seeking_talent=seeking_talent,\
+              seeking_description=seeking_description)
+
+    #pdb.set_trace()
     db.session.add(venue)
     db.session.commit()
     flash('Venue ' + request.form['name'] + ' was successfully listed!')
